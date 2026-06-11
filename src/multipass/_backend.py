@@ -40,7 +40,14 @@ class SubprocessBackend:
         env: dict[str, str] | None = None,
     ) -> CommandResult:
         try:
-            proc = subprocess.run(args, capture_output=True, text=True, cwd=cwd, env=env)
+            proc = subprocess.run(
+                args,
+                capture_output=True,
+                text=True,
+                cwd=cwd,
+                env=env,
+                stdin=subprocess.DEVNULL,
+            )
         except FileNotFoundError:
             raise MultipassNotInstalledError()
         return CommandResult(
