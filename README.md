@@ -366,7 +366,7 @@ assert backend.last_env() is None
 
 ```bash
 # Setup
-uv sync --extra dev
+uv sync
 
 # Unit tests (no Multipass required)
 uv run pytest tests/unit/ -v

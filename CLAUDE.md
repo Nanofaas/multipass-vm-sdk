@@ -9,10 +9,16 @@ An unofficial Python SDK that wraps the Multipass CLI to manage Ubuntu VMs progr
 ## Setup
 
 ```bash
-uv sync --extra dev
+uv sync
 ```
 
 Requires [uv](https://docs.astral.sh/uv/). Multipass itself is NOT required for unit tests.
+
+The toolchain (ruff, basedpyright, bandit, pytest, pre-commit) lives in
+`[dependency-groups].dev`, which a plain `uv sync` installs. It must stay there
+and not move to `[project.optional-dependencies]`: extras are skipped by
+`uv run`, so the basedpyright pre-commit hook — which runs `uv run --frozen
+basedpyright` — would fail in CI with "Failed to spawn: basedpyright".
 
 ## Running Tests
 

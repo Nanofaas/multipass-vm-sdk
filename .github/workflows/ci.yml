@@ -5,6 +5,13 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      run_integration:
+        description: >-
+          Run the integration suite. Requires a Multipass daemon, so it will
+          fail on a hosted runner - use a self-hosted runner or run it locally.
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -77,7 +84,7 @@ jobs:
           cache-dependency-glob: uv.lock
 
       - name: Install project
-        run: uv sync --frozen --extra dev
+        run: uv sync --frozen
 
       - name: Run unit tests with coverage
         run: uv run --frozen pytest tests/unit --cov --cov-report=xml --cov-report=term-missing
@@ -94,13 +101,15 @@ jobs:
   # Integration tests against a real Multipass daemon.
   #
   # These cannot run on a hosted runner - Multipass needs nested virtualisation
-  # and a running daemon - so the job is manual-only rather than failing every
-  # PR. Trigger it from the Actions tab, or run it locally with
-  # `uv run pytest -m integration`.
+  # and a running daemon - so the job is opt-in behind an explicit dispatch
+  # input. Gating it on `workflow_dispatch` alone was not enough: dispatching for
+  # any other reason would run it too, and it would always fail with
+  # `FileNotFoundError: 'multipass'`. Point `runs-on` at a self-hosted runner
+  # that has Multipass, or run it locally with `uv run pytest -m integration`.
   # ---------------------------------------------------------------------------
   integration:
     name: integration (manual, needs Multipass)
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.run_integration
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -115,7 +124,7 @@ jobs:
           cache-dependency-glob: uv.lock
 
       - name: Install project
-        run: uv sync --frozen --extra dev
+        run: uv sync --frozen
 
       - name: Run integration tests
         run: uv run --frozen pytest -m integration -v --tb=short

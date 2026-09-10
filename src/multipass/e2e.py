@@ -187,7 +187,9 @@ def _test_transfer(vm: MultipassVM) -> bool:
         Path(host_src).unlink(missing_ok=True)
         return False
 
-    # Verify file arrived. The path is inside the VM, not a host temp file.
+    # Verify file arrived. B108 reads the /tmp literal below as a host temp
+    # path; this one names a file inside the guest, and the VM is torn down at
+    # the end of the run.
     result = vm.exec(["cat", "/tmp/e2e_transfer_in.txt"])  # nosec B108
     if result.stdout.strip() != content:
         print(f"{label} transfer (host→VM) FAILED — content mismatch", file=sys.stderr)
