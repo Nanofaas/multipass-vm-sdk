@@ -48,8 +48,10 @@ class SubprocessBackend:
                 env=env,
                 stdin=subprocess.DEVNULL,
             )
-        except FileNotFoundError:
-            raise MultipassNotInstalledError()
+        except FileNotFoundError as exc:
+            # The original error names which binary was missing, which is the
+            # part worth keeping when this is reported.
+            raise MultipassNotInstalledError() from exc
         return CommandResult(
             args=args,
             returncode=proc.returncode,
@@ -76,7 +78,10 @@ class FakeBackend:
         self._default = result
 
     def push(self, *args: str, result: CommandResult) -> None:
-        """Queue a response for args (consumed in order, takes priority over responses/default)."""
+        """Queue a response for args, consumed in order.
+
+        Takes priority over responses/default.
+        """
         self._queues.setdefault(args, []).append(result)
 
     def run(
@@ -90,7 +95,7 @@ class FakeBackend:
         self._cwds.append(cwd)
         self._envs.append(env)
         key = tuple(args)
-        if key in self._queues and self._queues[key]:
+        if self._queues.get(key):
             return self._queues[key].pop(0)
         if key in self._responses:
             return self._responses[key]

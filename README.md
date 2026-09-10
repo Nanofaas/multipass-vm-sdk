@@ -40,10 +40,12 @@ vm = client.launch(name="my-vm", cpus=2, memory="1G", disk="10G", image="22.04")
 vm = client.launch(VmConfig(name="my-vm", cpus=4, memory="8G"))
 
 # Launch multiple VMs in parallel (rolls back on failure)
-vms = client.launch_many([
-    VmConfig(name="web", cpus=2),
-    VmConfig(name="db", cpus=4, memory="8G"),
-])
+vms = client.launch_many(
+    [
+        VmConfig(name="web", cpus=2),
+        VmConfig(name="db", cpus=4, memory="8G"),
+    ]
+)
 
 # Wait until SSH is reachable, then connect
 ip = vm.wait_ready(timeout=180, port=22)
@@ -54,8 +56,9 @@ result = vm.exec(["uname", "-r"])
 print(result.stdout)
 
 # Structured exec with cwd and env
-result = vm.exec_structured(["sh", "-c", 'echo "$PWD $MSG"'],
-                            cwd="/tmp", env={"MSG": "hello"})
+result = vm.exec_structured(
+    ["sh", "-c", 'echo "$PWD $MSG"'], cwd="/tmp", env={"MSG": "hello"}
+)
 
 # Lifecycle
 vm.stop()
@@ -74,7 +77,7 @@ vm.delete(purge=True)
 ### `MultipassClient`
 
 ```python
-client = MultipassClient(cmd="multipass")   # cmd: path to the CLI binary
+client = MultipassClient(cmd="multipass")  # cmd: path to the CLI binary
 ```
 
 | Method | Description |
@@ -83,7 +86,7 @@ client = MultipassClient(cmd="multipass")   # cmd: path to the CLI binary
 | `launch_many(configs, *, max_workers) → list[MultipassVM]` | Launch multiple VMs in parallel; rolls back all on any failure |
 | `ensure_running(name, image, *, cpus, memory, disk, cloud_init, cloud_init_config) → MultipassVM` | Idempotent: launch, start, or no-op so the VM ends up Running |
 | `get_vm(name) → MultipassVM` | Get a VM object by name |
-| `list() → list[VmInfo]` | List all VMs |
+| `list_vms() → list[VmInfo]` | List all VMs |
 | `find() → list[ImageInfo]` | List available images |
 | `purge()` | Permanently delete all soft-deleted VMs |
 | `networks() → list[NetworkInfo]` | List available networks |
@@ -220,7 +223,7 @@ vm = client.launch(
     cloud_init_config={
         "packages": ["git", "curl"],
         "runcmd": ["apt-get upgrade -y"],
-    }
+    },
 )
 ```
 
@@ -236,7 +239,7 @@ packages:
   - curl
 runcmd:
   - apt-get upgrade -y
-"""
+""",
 )
 ```
 
@@ -261,7 +264,7 @@ vm = client.launch(
                 "ssh_authorized_keys": [ssh_key],
             }
         ]
-    }
+    },
 )
 ```
 
@@ -318,25 +321,40 @@ from multipass import MultipassClient
 from multipass.testing import FakeBackend
 from multipass import CommandResult
 
-backend = FakeBackend({
-    ("multipass", "list", "--format", "json"): CommandResult(
-        args=[], returncode=0,
-        stdout=json.dumps({"list": []}),
-        stderr="",
-    )
-})
+backend = FakeBackend(
+    {
+        ("multipass", "list", "--format", "json"): CommandResult(
+            args=[],
+            returncode=0,
+            stdout=json.dumps({"list": []}),
+            stderr="",
+        )
+    }
+)
 client = MultipassClient(backend=backend)
-vms = client.list()   # no Multipass required
+vms = client.list_vms()  # no Multipass required
 ```
 
 `FakeBackend` also supports queued responses for polling scenarios and tracks `cwd`/`env` for assertions:
 
 ```python
 backend = FakeBackend()
-backend.push("multipass", "info", "my-vm", "--format", "json",
-             result=CommandResult(..., stdout=info_no_ip))
-backend.push("multipass", "info", "my-vm", "--format", "json",
-             result=CommandResult(..., stdout=info_with_ip))
+backend.push(
+    "multipass",
+    "info",
+    "my-vm",
+    "--format",
+    "json",
+    result=CommandResult(..., stdout=info_no_ip),
+)
+backend.push(
+    "multipass",
+    "info",
+    "my-vm",
+    "--format",
+    "json",
+    result=CommandResult(..., stdout=info_with_ip),
+)
 
 assert backend.last_cwd() is None
 assert backend.last_env() is None

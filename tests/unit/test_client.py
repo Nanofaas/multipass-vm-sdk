@@ -1,41 +1,62 @@
 import json
 from pathlib import Path
+from typing import ClassVar
+
 import pytest
+
 from multipass._backend import CommandResult, FakeBackend
 from multipass.client import MultipassClient
 from multipass.exceptions import MultipassCommandError
 from multipass.models import VmConfig, VmState
 from multipass.vm import MultipassVM
 
-LIST_JSON = json.dumps({
-    "list": [
-        {"ipv4": ["192.168.64.2"], "name": "vm1", "release": "22.04 LTS", "state": "Running"},
-        {"ipv4": [], "name": "vm2", "release": "22.04 LTS", "state": "Stopped"},
-    ]
-})
+LIST_JSON = json.dumps(
+    {
+        "list": [
+            {
+                "ipv4": ["192.168.64.2"],
+                "name": "vm1",
+                "release": "22.04 LTS",
+                "state": "Running",
+            },
+            {"ipv4": [], "name": "vm2", "release": "22.04 LTS", "state": "Stopped"},
+        ]
+    }
+)
 
-FIND_JSON = json.dumps({
-    "errors": [],
-    "images": {
-        "22.04": {
-            "aliases": ["jammy", "lts"],
-            "os": "Ubuntu",
-            "release": "22.04 LTS",
-            "remote": "",
-            "version": "20230801",
-        }
-    },
-})
+FIND_JSON = json.dumps(
+    {
+        "errors": [],
+        "images": {
+            "22.04": {
+                "aliases": ["jammy", "lts"],
+                "os": "Ubuntu",
+                "release": "22.04 LTS",
+                "remote": "",
+                "version": "20230801",
+            }
+        },
+    }
+)
 
-NETWORKS_JSON = json.dumps({
-    "list": [{"description": "Wi-Fi", "name": "en0", "type": "wifi"}]
-})
+NETWORKS_JSON = json.dumps(
+    {"list": [{"description": "Wi-Fi", "name": "en0", "type": "wifi"}]}
+)
 
 VERSION_JSON = json.dumps({"multipass": "1.13.0", "multipassd": "1.13.0"})
 
-ALIASES_JSON = json.dumps({
-    "aliases": [{"alias": "myalias", "command": "ls", "instance": "vm1", "working-directory": "default"}]
-})
+ALIASES_JSON = json.dumps(
+    {
+        "aliases": [
+            {
+                "alias": "myalias",
+                "command": "ls",
+                "instance": "vm1",
+                "working-directory": "default",
+            }
+        ]
+    }
+)
 
 
 def make_ok(stdout: str = "") -> CommandResult:
@@ -47,20 +68,22 @@ def make_err(stderr: str = "error") -> CommandResult:
 
 
 def _info_json(name: str, state: str, ipv4: list[str] | None = None) -> str:
-    return json.dumps({
-        "info": {
-            name: {
-                "state": state,
-                "ipv4": ipv4 or [],
-                "image_release": "22.04",
-                "image_hash": "",
-                "cpu_count": 1,
-                "memory": {},
-                "disks": {},
-                "mounts": {},
+    return json.dumps(
+        {
+            "info": {
+                name: {
+                    "state": state,
+                    "ipv4": ipv4 or [],
+                    "image_release": "22.04",
+                    "image_hash": "",
+                    "cpu_count": 1,
+                    "memory": {},
+                    "disks": {},
+                    "mounts": {},
+                }
             }
         }
-    })
+    )
 
 
 def test_list_returns_vm_info_list():
@@ -68,7 +91,7 @@ def test_list_returns_vm_info_list():
         {("multipass", "list", "--format", "json"): make_ok(LIST_JSON)}
     )
     client = MultipassClient(backend=backend)
-    vms = client.list()
+    vms = client.list_vms()
     assert len(vms) == 2
     assert vms[0].name == "vm1"
     assert vms[0].state == VmState.RUNNING
@@ -131,7 +154,8 @@ def test_launch_with_cloud_init_config_dict(tmp_path, monkeypatch):
     captured: dict = {}
 
     class CapturingBackend:
-        calls: list = []
+        calls: ClassVar[list] = []
+
         def run(self, args):
             self.calls.append(list(args))
             if "--cloud-init" in args:
@@ -145,6 +169,7 @@ def test_launch_with_cloud_init_config_dict(tmp_path, monkeypatch):
     content = captured["content"]
     assert content.startswith("#cloud-config\n")
     import yaml
+
     parsed = yaml.safe_load(content)
     assert parsed["packages"] == ["git"]
     assert not Path(captured["path"]).exists()
@@ -156,7 +181,8 @@ def test_launch_with_cloud_init_config_str(tmp_path, monkeypatch):
     captured: dict = {}
 
     class CapturingBackend:
-        calls: list = []
+        calls: ClassVar[list] = []
+
         def run(self, args):
             self.calls.append(list(args))
             if "--cloud-init" in args:
@@ -253,17 +279,24 @@ def test_custom_multipass_cmd():
     backend = FakeBackend()
     backend.set_default(make_ok(LIST_JSON))
     client = MultipassClient(cmd="/usr/local/bin/multipass", backend=backend)
-    client.list()
+    client.list_vms()
     assert backend.calls[0][0] == "/usr/local/bin/multipass"
 
 
 # ------------------------------------------------------------------ ensure_running
 
+
 def test_ensure_running_launches_vm_when_not_found():
     name = "my-vm"
     backend = FakeBackend()
-    backend.push("multipass", "info", name, "--format", "json",
-                 result=make_err(f"instance '{name}' does not exist"))
+    backend.push(
+        "multipass",
+        "info",
+        name,
+        "--format",
+        "json",
+        result=make_err(f"instance '{name}' does not exist"),
+    )
     backend.set_default(make_ok())
     client = MultipassClient(backend=backend)
 
@@ -275,9 +308,13 @@ def test_ensure_running_launches_vm_when_not_found():
 
 def test_ensure_running_is_noop_when_already_running():
     name = "my-vm"
-    backend = FakeBackend({
-        ("multipass", "info", name, "--format", "json"): make_ok(_info_json(name, "Running")),
-    })
+    backend = FakeBackend(
+        {
+            ("multipass", "info", name, "--format", "json"): make_ok(
+                _info_json(name, "Running")
+            ),
+        }
+    )
     client = MultipassClient(backend=backend)
 
     vm = client.ensure_running(name)
@@ -289,10 +326,14 @@ def test_ensure_running_is_noop_when_already_running():
 
 def test_ensure_running_starts_stopped_vm():
     name = "my-vm"
-    backend = FakeBackend({
-        ("multipass", "info", name, "--format", "json"): make_ok(_info_json(name, "Stopped")),
-        ("multipass", "start", name): make_ok(),
-    })
+    backend = FakeBackend(
+        {
+            ("multipass", "info", name, "--format", "json"): make_ok(
+                _info_json(name, "Stopped")
+            ),
+            ("multipass", "start", name): make_ok(),
+        }
+    )
     client = MultipassClient(backend=backend)
 
     vm = client.ensure_running(name)
@@ -304,10 +345,14 @@ def test_ensure_running_starts_stopped_vm():
 
 def test_ensure_running_starts_suspended_vm():
     name = "my-vm"
-    backend = FakeBackend({
-        ("multipass", "info", name, "--format", "json"): make_ok(_info_json(name, "Suspended")),
-        ("multipass", "start", name): make_ok(),
-    })
+    backend = FakeBackend(
+        {
+            ("multipass", "info", name, "--format", "json"): make_ok(
+                _info_json(name, "Suspended")
+            ),
+            ("multipass", "start", name): make_ok(),
+        }
+    )
     client = MultipassClient(backend=backend)
 
     vm = client.ensure_running(name)
@@ -319,8 +364,14 @@ def test_ensure_running_starts_suspended_vm():
 def test_ensure_running_purges_and_relaunches_deleted_vm():
     name = "my-vm"
     backend = FakeBackend()
-    backend.push("multipass", "info", name, "--format", "json",
-                 result=make_ok(_info_json(name, "Deleted")))
+    backend.push(
+        "multipass",
+        "info",
+        name,
+        "--format",
+        "json",
+        result=make_ok(_info_json(name, "Deleted")),
+    )
     backend.set_default(make_ok())
     client = MultipassClient(backend=backend)
 
@@ -334,8 +385,14 @@ def test_ensure_running_purges_and_relaunches_deleted_vm():
 def test_ensure_running_forwards_launch_params():
     name = "my-vm"
     backend = FakeBackend()
-    backend.push("multipass", "info", name, "--format", "json",
-                 result=make_err(f"instance '{name}' does not exist"))
+    backend.push(
+        "multipass",
+        "info",
+        name,
+        "--format",
+        "json",
+        result=make_err(f"instance '{name}' does not exist"),
+    )
     backend.set_default(make_ok())
     client = MultipassClient(backend=backend)
 
@@ -352,12 +409,20 @@ def test_ensure_running_forwards_cloud_init_config(tmp_path, monkeypatch):
     monkeypatch.setattr("multipass.client.Path.home", lambda: tmp_path)
     name = "my-vm"
     backend = FakeBackend()
-    backend.push("multipass", "info", name, "--format", "json",
-                 result=make_err(f"instance '{name}' does not exist"))
+    backend.push(
+        "multipass",
+        "info",
+        name,
+        "--format",
+        "json",
+        result=make_err(f"instance '{name}' does not exist"),
+    )
     backend.set_default(make_ok())
     client = MultipassClient(backend=backend)
 
-    client.ensure_running(name, cloud_init_config={"ssh_authorized_keys": ["ssh-ed25519 AAAA..."]})
+    client.ensure_running(
+        name, cloud_init_config={"ssh_authorized_keys": ["ssh-ed25519 AAAA..."]}
+    )
 
     launch_call = next(call for call in backend.calls if call[1] == "launch")
     assert "--cloud-init" in launch_call
@@ -365,28 +430,11 @@ def test_ensure_running_forwards_cloud_init_config(tmp_path, monkeypatch):
 
 def test_public_api_importable():
     from multipass import (
-        MultipassClient,
-        MultipassVM,
-        MultipassError,
-        MultipassCommandError,
-        MultipassNotInstalledError,
-        VmNotFoundError,
-        VmAlreadyRunningError,
-        VmNotRunningError,
-        VmAlreadySuspendedError,
-        VmConfig,
         CloudInitConfig,
-        VmInfo,
-        VmState,
-        ImageInfo,
-        NetworkInfo,
-        VersionInfo,
-        AliasInfo,
-        SnapshotInfo,
-        CommandResult,
-        FakeBackend,
-        SubprocessBackend,
+        MultipassClient,
+        VmConfig,
     )
+
     assert MultipassClient is not None
     assert VmConfig is not None
     assert CloudInitConfig is not None
@@ -443,11 +491,29 @@ def test_launch_many_rolls_back_on_failure():
     backend = FakeBackend()
     # First launch succeeds, second fails
     backend.push(
-        "multipass", "launch", "-n", "vm1", "-c", "1", "-m", "1G", "-d", "5G",
+        "multipass",
+        "launch",
+        "-n",
+        "vm1",
+        "-c",
+        "1",
+        "-m",
+        "1G",
+        "-d",
+        "5G",
         result=make_ok(),
     )
     backend.push(
-        "multipass", "launch", "-n", "vm2", "-c", "2", "-m", "1G", "-d", "5G",
+        "multipass",
+        "launch",
+        "-n",
+        "vm2",
+        "-c",
+        "2",
+        "-m",
+        "1G",
+        "-d",
+        "5G",
         result=make_err("launch failed"),
     )
     # vm1 delete during rollback

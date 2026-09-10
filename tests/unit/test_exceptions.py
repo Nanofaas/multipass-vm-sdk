@@ -1,11 +1,11 @@
 from multipass.exceptions import (
-    MultipassError,
     MultipassCommandError,
+    MultipassError,
     MultipassNotInstalledError,
-    VmNotFoundError,
     VmAlreadyRunningError,
-    VmNotRunningError,
     VmAlreadySuspendedError,
+    VmNotFoundError,
+    VmNotRunningError,
 )
 
 

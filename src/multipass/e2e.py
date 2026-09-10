@@ -1,5 +1,4 @@
-"""End-to-end verification: create VM(s), verify readiness, run feature tests,
-delete the VM(s).
+"""End-to-end verification: create VM(s), verify readiness, run feature tests, delete.
 
 Prerequisites:
     Multipass installed and running
@@ -17,10 +16,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import sys
 import tempfile
 import time
+from collections.abc import Sequence
 from dataclasses import fields
 from pathlib import Path
 
@@ -32,7 +33,7 @@ from .vm import MultipassVM
 _STEPS = 5
 
 
-def _plural_label(names: list[str], actual_count: int | None = None) -> str:
+def _plural_label(names: Sequence[str | None], actual_count: int | None = None) -> str:
     count = actual_count if actual_count is not None else len(names)
     if count == 1:
         return f"VM '{names[0]}'"
@@ -80,7 +81,9 @@ def _check_mutually_exclusive(args: argparse.Namespace) -> None:
     if args.image is not None:
         conflicts.append("--image")
     if conflicts:
-        raise SystemExit(f"--configs is mutually exclusive with: {', '.join(conflicts)}")
+        raise SystemExit(
+            f"--configs is mutually exclusive with: {', '.join(conflicts)}"
+        )
 
 
 # ------------------------------------------------------------------ feature tests
@@ -93,7 +96,10 @@ def _test_exec_structured(vm: MultipassVM) -> bool:
     try:
         result = vm.exec_structured(
             ["sh", "-c", 'echo "cwd=$(pwd)" "MSG=$MSG"'],
-            cwd="/tmp",
+            # /tmp on purpose: this feature test asserts that the cwd parameter
+            # reaches the remote command, and the assertion checks for exactly
+            # this path. It is not a temp file used to hold data.
+            cwd="/tmp",  # nosec B108
             env={"MSG": "hello"},
         )
     except MultipassError as exc:
@@ -119,7 +125,10 @@ def _test_stop_start(vm: MultipassVM, timeout: float) -> bool:
 
     info = vm.info()
     if info.state != VmState.STOPPED:
-        print(f"{label} stop FAILED — expected state=Stopped, got {info.state}", file=sys.stderr)
+        print(
+            f"{label} stop FAILED — expected state=Stopped, got {info.state}",
+            file=sys.stderr,
+        )
         return False
     print(f"{label}   state={info.state.value} ✓")
 
@@ -178,8 +187,8 @@ def _test_transfer(vm: MultipassVM) -> bool:
         Path(host_src).unlink(missing_ok=True)
         return False
 
-    # Verify file arrived
-    result = vm.exec(["cat", "/tmp/e2e_transfer_in.txt"])
+    # Verify file arrived. The path is inside the VM, not a host temp file.
+    result = vm.exec(["cat", "/tmp/e2e_transfer_in.txt"])  # nosec B108
     if result.stdout.strip() != content:
         print(f"{label} transfer (host→VM) FAILED — content mismatch", file=sys.stderr)
         print(f"{label}   expected: {content!r}")
@@ -280,10 +289,9 @@ def _test_snapshot_restore(vm: MultipassVM, timeout: float) -> bool:
 
 
 def _safe_delete(vm: MultipassVM) -> None:
-    try:
+    """Delete a VM, ignoring errors so cleanup never masks the real failure."""
+    with contextlib.suppress(MultipassError):
         vm.delete(purge=True)
-    except MultipassError:
-        pass
 
 
 def _skip_reason(feature: str, skipped: set[str], count: int) -> str | None:
@@ -298,34 +306,56 @@ def _skip_reason(feature: str, skipped: set[str], count: int) -> str | None:
 
 
 def main() -> None:
+    """Run the end-to-end VM lifecycle test. Exits non-zero if any feature failed."""
     parser = argparse.ArgumentParser(
-        description="End-to-end VM lifecycle test (create, verify, feature test, delete)."
+        description=(
+            "End-to-end VM lifecycle test (create, verify, feature test, delete)."
+        )
     )
     parser.add_argument(
-        "--name", default=None,
+        "--name",
+        default=None,
         help="VM name; used as prefix when --count > 1 (auto-generated if omitted).",
     )
-    parser.add_argument("--cpus", type=int, default=1, help="Number of CPUs (default: 1).")
+    parser.add_argument(
+        "--cpus", type=int, default=1, help="Number of CPUs (default: 1)."
+    )
     parser.add_argument("--memory", default="1G", help="Memory size (default: 1G).")
     parser.add_argument("--disk", default="5G", help="Disk size (default: 5G).")
-    parser.add_argument("--image", default=None, help="Ubuntu image (default: latest LTS).")
     parser.add_argument(
-        "--timeout", type=float, default=300,
+        "--image", default=None, help="Ubuntu image (default: latest LTS)."
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=300,
         help="Max seconds to wait for SSH readiness (default: 300).",
     )
     parser.add_argument(
-        "--count", type=int, default=1,
+        "--count",
+        type=int,
+        default=1,
         help="Number of identical VMs to create in parallel (default: 1).",
     )
     parser.add_argument(
         "--configs",
-        help="JSON array of VmConfig objects. Mutually exclusive with --name/--cpus/--memory/--disk/--image/--count.",
+        help=(
+            "JSON array of VmConfig objects. Mutually exclusive with "
+            "--name/--cpus/--memory/--disk/--image/--count."
+        ),
     )
     parser.add_argument(
-        "--skip", default="",
-        help="Comma-separated feature names to skip: exec_structured, stop_start, restart, transfer, clone, snapshot_restore. Use 'all' to skip all feature tests.",
+        "--skip",
+        default="",
+        help=(
+            "Comma-separated feature names to skip: exec_structured, stop_start, "
+            "restart, transfer, clone, snapshot_restore. Use 'all' to skip all "
+            "feature tests."
+        ),
     )
-    parser.add_argument("--list-images", action="store_true", help="List available images and exit.")
+    parser.add_argument(
+        "--list-images", action="store_true", help="List available images and exit."
+    )
     args = parser.parse_args()
 
     _check_mutually_exclusive(args)
@@ -342,7 +372,10 @@ def main() -> None:
         print(f"{'Aliases':<30} {'OS':<12} {'Release':<16} {'Version':<12}")
         print("-" * 70)
         for img in images:
-            print(f"{','.join(img.aliases):<30} {img.os:<12} {img.release:<16} {img.version:<12}")
+            print(
+                f"{','.join(img.aliases):<30} {img.os:<12} "
+                f"{img.release:<16} {img.version:<12}"
+            )
         raise SystemExit(0)
 
     # --- build configs -------------------------------------------------------
@@ -363,15 +396,23 @@ def main() -> None:
     else:
         prefix = args.name or f"e2e-{int(time.time())}"
         if args.count == 1:
-            configs = [VmConfig(
-                name=prefix, image=args.image,
-                cpus=args.cpus, memory=args.memory, disk=args.disk,
-            )]
+            configs = [
+                VmConfig(
+                    name=prefix,
+                    image=args.image,
+                    cpus=args.cpus,
+                    memory=args.memory,
+                    disk=args.disk,
+                )
+            ]
         else:
             configs = [
                 VmConfig(
-                    name=f"{prefix}-{i}", image=args.image,
-                    cpus=args.cpus, memory=args.memory, disk=args.disk,
+                    name=f"{prefix}-{i}",
+                    image=args.image,
+                    cpus=args.cpus,
+                    memory=args.memory,
+                    disk=args.disk,
                 )
                 for i in range(args.count)
             ]
@@ -387,10 +428,16 @@ def main() -> None:
         # ============================================================ [1/5] launch
         if num_vms == 1:
             cfg = configs[0]
-            print(f"[1/{_STEPS}] Launching VM '{names[0]}' (cpus={cfg.cpus}, memory={cfg.memory}, disk={cfg.disk}) ...")
+            print(
+                f"[1/{_STEPS}] Launching VM '{names[0]}' "
+                f"(cpus={cfg.cpus}, memory={cfg.memory}, disk={cfg.disk}) ..."
+            )
         else:
             cfg0 = configs[0]
-            print(f"[1/{_STEPS}] Launching {num_vms} VMs in parallel (cpus={cfg0.cpus}, memory={cfg0.memory}, disk={cfg0.disk}) ...")
+            print(
+                f"[1/{_STEPS}] Launching {num_vms} VMs in parallel "
+                f"(cpus={cfg0.cpus}, memory={cfg0.memory}, disk={cfg0.disk}) ..."
+            )
             for name in names:
                 print(f"       - {name}")
         t0 = time.monotonic()
@@ -417,7 +464,10 @@ def main() -> None:
                 ("restart", lambda: _test_restart(primary, args.timeout)),
                 ("transfer", lambda: _test_transfer(primary)),
                 ("clone", lambda: _test_clone_wrapper(primary, args.timeout, clones)),
-                ("snapshot_restore", lambda: _test_snapshot_restore(primary, args.timeout)),
+                (
+                    "snapshot_restore",
+                    lambda: _test_snapshot_restore(primary, args.timeout),
+                ),
             ]
 
             for name, test_fn in tests:
@@ -428,7 +478,9 @@ def main() -> None:
                 try:
                     ok = test_fn()
                 except Exception as exc:
-                    print(f"       ✗  {name}: unexpected error — {exc}", file=sys.stderr)
+                    print(
+                        f"       ✗  {name}: unexpected error — {exc}", file=sys.stderr
+                    )
                     failed_features.append(name)
                     continue
                 if ok:

@@ -1,13 +1,15 @@
-"""
-Integration tests — require Multipass installed and running.
+"""Integration tests — require Multipass installed and running.
+
 Run with: uv run pytest -m integration
 """
+
 import socket as _socket
 import tempfile
 import textwrap
 from pathlib import Path
 
 import pytest
+
 from multipass import MultipassClient, MultipassCommandError, VmNotFoundError, VmState
 
 
@@ -17,6 +19,7 @@ def client():
 
 
 # ------------------------------------------------------------------ read-only
+
 
 @pytest.mark.integration
 def test_version(client):
@@ -33,16 +36,19 @@ def test_find_returns_images(client):
 
 @pytest.mark.integration
 def test_list_returns_vms(client):
-    vms = client.list()
+    vms = client.list_vms()
     assert isinstance(vms, list)
 
 
 # -------------------------------------------------------------- full lifecycle
 
+
 @pytest.mark.integration
 def test_vm_full_lifecycle(client):
     """Launch → info → stop → start → exec → delete."""
-    vm = client.launch(name="sdk-test-vm", cpus=1, memory="512M", disk="5G", image="22.04")
+    vm = client.launch(
+        name="sdk-test-vm", cpus=1, memory="512M", disk="5G", image="22.04"
+    )
     try:
         info = vm.info()
         assert info.name == "sdk-test-vm"
@@ -77,6 +83,7 @@ def test_vm_info_reports_resources(client):
 
 # ------------------------------------------------------------- delete / purge
 
+
 @pytest.mark.integration
 def test_delete_soft_then_purge(client):
     """Soft delete → stato Deleted → purge globale → VM non trovata."""
@@ -90,6 +97,7 @@ def test_delete_soft_then_purge(client):
 
 
 # --------------------------------------------------------------- wait helpers
+
 
 @pytest.mark.integration
 def test_wait_for_ip_after_launch(client):
@@ -118,6 +126,7 @@ def test_wait_ready_ssh_reachable(client):
 
 # ------------------------------------------------------------- suspend/resume
 
+
 @pytest.mark.integration
 def test_suspend_and_resume(client):
     """Suspend → stato Suspended → start → stato Running."""
@@ -135,6 +144,7 @@ def test_suspend_and_resume(client):
 
 
 # ----------------------------------------------------------- file transfer
+
 
 @pytest.mark.integration
 def test_transfer_host_to_vm_and_back(client):
@@ -161,9 +171,10 @@ def test_transfer_host_to_vm_and_back(client):
 
 # ---------------------------------------------------------- snapshot / restore
 
+
 @pytest.mark.integration
 def test_snapshot_and_restore(client):
-    """Crea un file, snapshot, modifica il file, restore, verifica che il file originale sia tornato."""
+    """Crea un file, snapshot, modifica, restore e verifica del contenuto originale."""
     vm = client.launch(name="sdk-snap-vm", cpus=1, memory="512M", disk="5G")
     try:
         vm.wait_ready(timeout=180, port=22)
@@ -198,6 +209,7 @@ def test_snapshot_and_restore(client):
 
 # -------------------------------------------------------------------- clone
 
+
 @pytest.mark.integration
 def test_clone_creates_independent_vm(client):
     """Clona una VM e verifica che il clone sia indipendente."""
@@ -218,6 +230,7 @@ def test_clone_creates_independent_vm(client):
 
 # ------------------------------------------------------------- cloud-init
 
+
 @pytest.mark.integration
 def test_cloud_init_creates_file(client):
     """cloud-init scrive un file al primo avvio; exec verifica che esista."""
@@ -231,7 +244,9 @@ def test_cloud_init_creates_file(client):
         f.write(cloud_init)
         ci_path = f.name
 
-    vm = client.launch(name="sdk-cloudinit-vm", cpus=1, memory="512M", disk="5G", cloud_init=ci_path)
+    vm = client.launch(
+        name="sdk-cloudinit-vm", cpus=1, memory="512M", disk="5G", cloud_init=ci_path
+    )
     try:
         vm.wait_ready(timeout=180, port=22)
         result = vm.exec(["cat", "/tmp/cloud-init-marker"])
@@ -241,6 +256,7 @@ def test_cloud_init_creates_file(client):
 
 
 # ----------------------------------------------------------- error handling
+
 
 @pytest.mark.integration
 def test_launch_nonexistent_image_raises(client):

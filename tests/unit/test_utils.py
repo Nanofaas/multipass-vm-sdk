@@ -1,5 +1,3 @@
-from pathlib import Path
-import pytest
 from multipass.utils import find_ssh_public_key
 
 
@@ -50,4 +48,5 @@ def test_returns_none_when_ssh_dir_absent(tmp_path, monkeypatch):
 
 def test_importable_from_top_level():
     from multipass import find_ssh_public_key as f
+
     assert callable(f)

@@ -1,17 +1,27 @@
+"""High-level client for driving the multipass CLI."""
+
 from __future__ import annotations
 
+import contextlib
 import json
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import yaml
-
 from haikunator import Haikunator
 
 from ._backend import CommandBackend, CommandResult, SubprocessBackend
 from .exceptions import MultipassCommandError, VmNotFoundError
-from .models import AliasInfo, ImageInfo, NetworkInfo, VmConfig, VmInfo, VmState, VersionInfo
+from .models import (
+    AliasInfo,
+    ImageInfo,
+    NetworkInfo,
+    VersionInfo,
+    VmConfig,
+    VmInfo,
+    VmState,
+)
 from .vm import MultipassVM
 
 
@@ -23,11 +33,14 @@ def _check(result: CommandResult) -> None:
 
 
 class MultipassClient:
+    """Synchronous client for the multipass CLI."""
+
     def __init__(
         self,
         cmd: str = "multipass",
         backend: CommandBackend | None = None,
     ) -> None:
+        """Create a client. ``backend`` overrides how commands are executed."""
         self._cmd = cmd
         self._backend: CommandBackend = backend or SubprocessBackend()
 
@@ -40,6 +53,7 @@ class MultipassClient:
         return json.loads(self._run(*args).stdout)
 
     def get_vm(self, name: str) -> MultipassVM:
+        """Return a handle for the named VM to issue further operations on."""
         return MultipassVM(name, self._cmd, self._backend)
 
     def launch(
@@ -79,18 +93,20 @@ class MultipassClient:
             cmd.append(image)
         if cloud_init_config is not None:
             if isinstance(cloud_init_config, dict):
-                content = "#cloud-config\n" + yaml.dump(cloud_init_config, default_flow_style=False)
+                content = "#cloud-config\n" + yaml.dump(
+                    cloud_init_config, default_flow_style=False
+                )
             else:
                 content = cloud_init_config
-            tmp = tempfile.NamedTemporaryFile(
+            with tempfile.NamedTemporaryFile(
                 dir=Path.home(), suffix=".yaml", delete=False, mode="w"
-            )
-            try:
+            ) as tmp:
                 tmp.write(content)
-                tmp.close()
-                self._run(*cmd, "--cloud-init", tmp.name)
+                cloud_init_path = tmp.name
+            try:
+                self._run(*cmd, "--cloud-init", cloud_init_path)
             finally:
-                Path(tmp.name).unlink(missing_ok=True)
+                Path(cloud_init_path).unlink(missing_ok=True)
         else:
             self._run(*cmd)
         return MultipassVM(name, self._cmd, self._backend)
@@ -110,10 +126,7 @@ class MultipassClient:
         first_error: BaseException | None = None
 
         with ThreadPoolExecutor(max_workers=workers) as executor:
-            futures = {
-                executor.submit(self.launch, cfg): cfg
-                for cfg in configs
-            }
+            futures = {executor.submit(self.launch, cfg): cfg for cfg in configs}
 
             for fut in as_completed(futures):
                 if first_error is not None:
@@ -129,10 +142,8 @@ class MultipassClient:
         if first_error is not None:
             with ThreadPoolExecutor(max_workers=max(len(created), 1)) as rollback:
                 for rf in [rollback.submit(vm.delete) for vm in created]:
-                    try:
+                    with contextlib.suppress(Exception):
                         rf.result()
-                    except Exception:
-                        pass
             raise first_error
 
         return created
@@ -168,9 +179,13 @@ class MultipassClient:
             info = self.get_vm(name).info()
         except VmNotFoundError:
             return self.launch(
-                name, image,
-                cpus=cpus, memory=memory, disk=disk,
-                cloud_init=cloud_init, cloud_init_config=cloud_init_config,
+                name,
+                image,
+                cpus=cpus,
+                memory=memory,
+                disk=disk,
+                cloud_init=cloud_init,
+                cloud_init_config=cloud_init_config,
             )
 
         if info.state == VmState.RUNNING:
@@ -179,41 +194,59 @@ class MultipassClient:
         if info.state == VmState.DELETED:
             self.purge()
             return self.launch(
-                name, image,
-                cpus=cpus, memory=memory, disk=disk,
-                cloud_init=cloud_init, cloud_init_config=cloud_init_config,
+                name,
+                image,
+                cpus=cpus,
+                memory=memory,
+                disk=disk,
+                cloud_init=cloud_init,
+                cloud_init_config=cloud_init_config,
             )
 
         # Stopped, Suspended, Starting, Restarting, Unknown
         self.get_vm(name).start()
         return self.get_vm(name)
 
-    def list(self) -> list[VmInfo]:
+    def list_vms(self) -> list[VmInfo]:
+        """List all VMs known to Multipass."""
         return VmInfo.from_list_json(self._run_json("list", "--format", "json"))
 
     def find(self) -> list[ImageInfo]:
+        """List the images available to launch."""
         return ImageInfo.from_find_json(self._run_json("find", "--format", "json"))
 
     def purge(self) -> None:
+        """Permanently remove all deleted instances from the system."""
         self._run("purge")
 
     def networks(self) -> list[NetworkInfo]:
-        return NetworkInfo.from_networks_json(self._run_json("networks", "--format", "json"))
+        """List the networks available on the host."""
+        return NetworkInfo.from_networks_json(
+            self._run_json("networks", "--format", "json")
+        )
 
     def version(self) -> VersionInfo:
+        """Return the installed Multipass version."""
         return VersionInfo.from_json(self._run_json("version", "--format", "json"))
 
     def get(self, key: str) -> str:
+        """Read a Multipass configuration value by key."""
         return self._run("get", key).stdout.strip()
 
     def set(self, key: str, value: str) -> None:
+        """Set a Multipass configuration key to a value."""
         self._run("set", f"{key}={value}")
 
     def aliases(self) -> list[AliasInfo]:
-        return AliasInfo.from_aliases_json(self._run_json("aliases", "--format", "json"))
+        """List the command aliases currently defined."""
+        return AliasInfo.from_aliases_json(
+            self._run_json("aliases", "--format", "json")
+        )
 
     def alias(self, name: str, vm: str, command: str) -> None:
+        """Define ``name`` as an alias for ``command`` running on ``vm``."""
         self._run("alias", f"{vm}:{command}", name)
 
     def unalias(self, name: str) -> None:
+        """Remove the alias with the given name."""
         self._run("unalias", name)

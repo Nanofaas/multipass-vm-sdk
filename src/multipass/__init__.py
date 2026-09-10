@@ -1,51 +1,57 @@
+"""Public API for the Multipass SDK.
+
+Exposes the client, VM handle, models, backends, and exceptions that make up
+the supported surface of the package.
+"""
+
+from ._backend import CommandResult, FakeBackend, SubprocessBackend
 from .client import MultipassClient
-from .vm import MultipassVM
 from .exceptions import (
-    MultipassError,
     MultipassCommandError,
+    MultipassError,
     MultipassNotInstalledError,
     MultipassTimeoutError,
-    VmNotFoundError,
     VmAlreadyRunningError,
-    VmNotRunningError,
     VmAlreadySuspendedError,
+    VmNotFoundError,
+    VmNotRunningError,
 )
 from .models import (
+    AliasInfo,
     CloudInitConfig,
+    ImageInfo,
+    NetworkInfo,
+    SnapshotInfo,
+    VersionInfo,
     VmConfig,
     VmInfo,
     VmState,
-    ImageInfo,
-    NetworkInfo,
-    VersionInfo,
-    AliasInfo,
-    SnapshotInfo,
 )
-from ._backend import CommandResult, FakeBackend, SubprocessBackend
 from .utils import find_ssh_public_key
+from .vm import MultipassVM
 
 __all__ = [
-    "MultipassClient",
-    "MultipassVM",
-    "MultipassError",
-    "MultipassCommandError",
-    "MultipassNotInstalledError",
-    "MultipassTimeoutError",
-    "VmNotFoundError",
-    "VmAlreadyRunningError",
-    "VmNotRunningError",
-    "VmAlreadySuspendedError",
-    "CloudInitConfig",
-    "VmConfig",
-    "VmInfo",
-    "VmState",
-    "ImageInfo",
-    "NetworkInfo",
-    "VersionInfo",
     "AliasInfo",
-    "SnapshotInfo",
+    "CloudInitConfig",
     "CommandResult",
     "FakeBackend",
+    "ImageInfo",
+    "MultipassClient",
+    "MultipassCommandError",
+    "MultipassError",
+    "MultipassNotInstalledError",
+    "MultipassTimeoutError",
+    "MultipassVM",
+    "NetworkInfo",
+    "SnapshotInfo",
     "SubprocessBackend",
+    "VersionInfo",
+    "VmAlreadyRunningError",
+    "VmAlreadySuspendedError",
+    "VmConfig",
+    "VmInfo",
+    "VmNotFoundError",
+    "VmNotRunningError",
+    "VmState",
     "find_ssh_public_key",
 ]

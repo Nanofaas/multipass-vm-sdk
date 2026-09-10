@@ -1,49 +1,57 @@
 import json
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
+
 from multipass._backend import CommandResult, FakeBackend
-from multipass.exceptions import MultipassCommandError, MultipassTimeoutError, VmNotFoundError
+from multipass.exceptions import (
+    MultipassCommandError,
+    MultipassTimeoutError,
+    VmNotFoundError,
+)
 from multipass.models import VmState
 from multipass.vm import MultipassVM
 
-INFO_RESPONSE = json.dumps({
-    "errors": [],
-    "info": {
-        "my-vm": {
-            "cpu_count": "2",
-            "disks": {"sda1": {"total": "5368709120", "used": "1000000000"}},
-            "image_hash": "abc123",
-            "image_release": "22.04 LTS",
-            "ipv4": ["192.168.64.2"],
-            "memory": {"total": 1073741824, "used": 123456789},
-            "mounts": {},
-            "state": "Running",
-        }
-    },
-})
+INFO_RESPONSE = json.dumps(
+    {
+        "errors": [],
+        "info": {
+            "my-vm": {
+                "cpu_count": "2",
+                "disks": {"sda1": {"total": "5368709120", "used": "1000000000"}},
+                "image_hash": "abc123",
+                "image_release": "22.04 LTS",
+                "ipv4": ["192.168.64.2"],
+                "memory": {"total": 1073741824, "used": 123456789},
+                "mounts": {},
+                "state": "Running",
+            }
+        },
+    }
+)
 
 _VM_DATA = json.loads(INFO_RESPONSE)["info"]["my-vm"]
 
-INFO_NO_IP = json.dumps({
-    "errors": [], "info": {"my-vm": {**_VM_DATA, "ipv4": []}}
-})
+INFO_NO_IP = json.dumps({"errors": [], "info": {"my-vm": {**_VM_DATA, "ipv4": []}}})
 
-INFO_WITH_IP = json.dumps({
-    "errors": [], "info": {"my-vm": {**_VM_DATA, "ipv4": ["192.168.64.5"]}}
-})
+INFO_WITH_IP = json.dumps(
+    {"errors": [], "info": {"my-vm": {**_VM_DATA, "ipv4": ["192.168.64.5"]}}}
+)
 
-SNAPSHOTS_JSON = json.dumps({
-    "errors": [],
-    "info": {
-        "my-vm": {
-            "snap1": {
-                "comment": "Before upgrade",
-                "created": "2023-08-15T10:30:00.000Z",
-                "parent": "",
+SNAPSHOTS_JSON = json.dumps(
+    {
+        "errors": [],
+        "info": {
+            "my-vm": {
+                "snap1": {
+                    "comment": "Before upgrade",
+                    "created": "2023-08-15T10:30:00.000Z",
+                    "parent": "",
+                }
             }
-        }
+        },
     }
-})
+)
 
 
 def make_ok(stdout: str = "") -> CommandResult:
@@ -55,6 +63,7 @@ def make_err(stderr: str, returncode: int = 1) -> CommandResult:
 
 
 # ------------------------------------------------------------------ info
+
 
 def test_info_returns_vm_info():
     backend = FakeBackend(
@@ -69,7 +78,11 @@ def test_info_returns_vm_info():
 
 def test_info_raises_vm_not_found():
     backend = FakeBackend(
-        {("multipass", "info", "ghost", "--format", "json"): make_err('instance "ghost" does not exist')}
+        {
+            ("multipass", "info", "ghost", "--format", "json"): make_err(
+                'instance "ghost" does not exist'
+            )
+        }
     )
     vm = MultipassVM("ghost", "multipass", backend)
     with pytest.raises(VmNotFoundError):
@@ -78,7 +91,11 @@ def test_info_raises_vm_not_found():
 
 def test_info_raises_command_error_on_generic_failure():
     backend = FakeBackend(
-        {("multipass", "info", "my-vm", "--format", "json"): make_err("some unexpected error")}
+        {
+            ("multipass", "info", "my-vm", "--format", "json"): make_err(
+                "some unexpected error"
+            )
+        }
     )
     vm = MultipassVM("my-vm", "multipass", backend)
     with pytest.raises(MultipassCommandError):
@@ -86,6 +103,7 @@ def test_info_raises_command_error_on_generic_failure():
 
 
 # ------------------------------------------------------------ lifecycle
+
 
 def test_start_sends_correct_command():
     backend = FakeBackend()
@@ -161,6 +179,7 @@ def test_lifecycle_raises_on_failure():
 
 # -------------------------------------------------------------- exec
 
+
 def test_exec_builds_command_from_list():
     exec_result = CommandResult(
         args=["multipass", "exec", "my-vm", "--", "ls", "-la"],
@@ -188,13 +207,18 @@ def test_exec_raises_on_nonzero():
 
 # ------------------------------------------------------------ transfer
 
+
 def test_transfer_host_to_vm():
     backend = FakeBackend()
     backend.set_default(make_ok())
     vm = MultipassVM("my-vm", "multipass", backend)
     vm.transfer("/host/path/file.txt", "my-vm:/remote/path/")
     assert backend.last_call() == [
-        "multipass", "transfer", "-r", "/host/path/file.txt", "my-vm:/remote/path/"
+        "multipass",
+        "transfer",
+        "-r",
+        "/host/path/file.txt",
+        "my-vm:/remote/path/",
     ]
 
 
@@ -204,11 +228,16 @@ def test_transfer_vm_to_host():
     vm = MultipassVM("my-vm", "multipass", backend)
     vm.transfer("my-vm:/remote/file.txt", "/host/dest/")
     assert backend.last_call() == [
-        "multipass", "transfer", "-r", "my-vm:/remote/file.txt", "/host/dest/"
+        "multipass",
+        "transfer",
+        "-r",
+        "my-vm:/remote/file.txt",
+        "/host/dest/",
     ]
 
 
 # -------------------------------------------------------------- mount
+
 
 def test_mount_sends_correct_command():
     backend = FakeBackend()
@@ -238,9 +267,14 @@ def test_unmount_sends_correct_command():
 
 # ---------------------------------------------------------- snapshots
 
+
 def test_snapshots_returns_list():
     backend = FakeBackend(
-        {("multipass", "list", "--snapshots", "--format", "json"): make_ok(SNAPSHOTS_JSON)}
+        {
+            ("multipass", "list", "--snapshots", "--format", "json"): make_ok(
+                SNAPSHOTS_JSON
+            )
+        }
     )
     vm = MultipassVM("my-vm", "multipass", backend)
     snaps = vm.snapshots()
@@ -275,12 +309,19 @@ def test_restore_destructive_adds_flag():
 
 # --------------------------------------------------------------- clone
 
+
 def test_clone_sends_correct_command_and_returns_vm():
     backend = FakeBackend()
     backend.set_default(make_ok())
     vm = MultipassVM("my-vm", "multipass", backend)
     new_vm = vm.clone("my-vm-clone")
-    assert backend.last_call() == ["multipass", "clone", "my-vm", "--name", "my-vm-clone"]
+    assert backend.last_call() == [
+        "multipass",
+        "clone",
+        "my-vm",
+        "--name",
+        "my-vm-clone",
+    ]
     assert new_vm.name == "my-vm-clone"
 
 
@@ -306,14 +347,17 @@ def test_wait_for_ip_raises_timeout(mock_sleep):
     backend = FakeBackend()
     backend.set_default(make_ok(INFO_NO_IP))
     vm = MultipassVM("my-vm", "multipass", backend)
-    with patch("multipass.vm.time.monotonic", side_effect=[0, 130]):
-        with pytest.raises(MultipassTimeoutError) as exc_info:
-            vm.wait_for_ip(timeout=120)
+    with (
+        patch("multipass.vm.time.monotonic", side_effect=[0, 130]),
+        pytest.raises(MultipassTimeoutError) as exc_info,
+    ):
+        vm.wait_for_ip(timeout=120)
     assert exc_info.value.name == "my-vm"
     assert exc_info.value.timeout == 120
 
 
 # -------------------------------------------------------- wait_ready
+
 
 @patch("multipass.vm.time.sleep")
 @patch("multipass.vm.socket.create_connection")
@@ -335,9 +379,11 @@ def test_wait_ready_raises_timeout_when_port_unreachable(mock_conn, mock_sleep):
     backend = FakeBackend()
     backend.set_default(make_ok(INFO_WITH_IP))
     vm = MultipassVM("my-vm", "multipass", backend)
-    with patch("multipass.vm.time.monotonic", side_effect=[0, 130]):
-        with pytest.raises(MultipassTimeoutError):
-            vm.wait_ready(timeout=120, port=22)
+    with (
+        patch("multipass.vm.time.monotonic", side_effect=[0, 130]),
+        pytest.raises(MultipassTimeoutError),
+    ):
+        vm.wait_ready(timeout=120, port=22)
 
 
 @patch("multipass.vm.time.sleep")
@@ -368,28 +414,35 @@ def test_exec_structured_includes_set_e():
 
 def test_snapshots_filters_by_current_vm():
     import json
-    snapshots_for_two = json.dumps({
-        "errors": [],
-        "info": {
-            "my-vm": {
-                "snap1": {
-                    "comment": "First",
-                    "created": "2023-01-01T00:00:00Z",
-                    "parent": "",
-                }
-            },
-            "other-vm": {
-                "snap2": {
-                    "comment": "Other",
-                    "created": "2023-01-02T00:00:00Z",
-                    "parent": "",
-                }
+
+    snapshots_for_two = json.dumps(
+        {
+            "errors": [],
+            "info": {
+                "my-vm": {
+                    "snap1": {
+                        "comment": "First",
+                        "created": "2023-01-01T00:00:00Z",
+                        "parent": "",
+                    }
+                },
+                "other-vm": {
+                    "snap2": {
+                        "comment": "Other",
+                        "created": "2023-01-02T00:00:00Z",
+                        "parent": "",
+                    }
+                },
             },
         }
-    })
-    backend = FakeBackend({
-        ("multipass", "list", "--snapshots", "--format", "json"): make_ok(snapshots_for_two)
-    })
+    )
+    backend = FakeBackend(
+        {
+            ("multipass", "list", "--snapshots", "--format", "json"): make_ok(
+                snapshots_for_two
+            )
+        }
+    )
     vm = MultipassVM("my-vm", "multipass", backend)
     snaps = vm.snapshots()
     assert len(snaps) == 1

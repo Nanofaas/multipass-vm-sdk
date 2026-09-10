@@ -1,14 +1,19 @@
 import pytest
+
 from multipass._backend import CommandResult, FakeBackend
 
 
 def test_command_result_success():
-    result = CommandResult(args=["multipass", "list"], returncode=0, stdout="ok", stderr="")
+    result = CommandResult(
+        args=["multipass", "list"], returncode=0, stdout="ok", stderr=""
+    )
     assert result.success is True
 
 
 def test_command_result_failure():
-    result = CommandResult(args=["multipass", "info"], returncode=1, stdout="", stderr="not found")
+    result = CommandResult(
+        args=["multipass", "info"], returncode=1, stdout="", stderr="not found"
+    )
     assert result.success is False
 
 

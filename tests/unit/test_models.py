@@ -1,5 +1,13 @@
 from multipass.models import (
-    CloudInitConfig, VmConfig, VmInfo, VmState, ImageInfo, NetworkInfo, VersionInfo, AliasInfo, SnapshotInfo
+    AliasInfo,
+    CloudInitConfig,
+    ImageInfo,
+    NetworkInfo,
+    SnapshotInfo,
+    VersionInfo,
+    VmConfig,
+    VmInfo,
+    VmState,
 )
 
 INFO_JSON = {
@@ -20,7 +28,12 @@ INFO_JSON = {
 
 LIST_JSON = {
     "list": [
-        {"ipv4": ["192.168.64.2"], "name": "my-vm", "release": "22.04 LTS", "state": "Running"}
+        {
+            "ipv4": ["192.168.64.2"],
+            "name": "my-vm",
+            "release": "22.04 LTS",
+            "state": "Running",
+        }
     ]
 }
 
@@ -45,7 +58,8 @@ def test_vminfo_from_list_json():
 
 def test_vmstate_unknown_falls_back():
     info = VmInfo.from_info_json(
-        {"errors": [], "info": {"x": {**INFO_JSON["info"]["my-vm"], "state": "Weird"}}}, "x"
+        {"errors": [], "info": {"x": {**INFO_JSON["info"]["my-vm"], "state": "Weird"}}},
+        "x",
     )
     assert info.state == VmState.UNKNOWN
 
@@ -85,7 +99,12 @@ def test_network_info_from_json():
 def test_alias_info_from_json():
     data = {
         "aliases": [
-            {"alias": "myalias", "command": "ls", "instance": "myvm", "working-directory": "default"}
+            {
+                "alias": "myalias",
+                "command": "ls",
+                "instance": "myvm",
+                "working-directory": "default",
+            }
         ]
     }
     aliases = AliasInfo.from_aliases_json(data)

@@ -1,3 +1,5 @@
+"""Data models for Multipass VM, image, network, alias, and snapshot state."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
@@ -5,6 +7,8 @@ from enum import Enum
 
 
 class VmState(Enum):
+    """Lifecycle states Multipass can report for a VM."""
+
     RUNNING = "Running"
     STOPPED = "Stopped"
     DELETED = "Deleted"
@@ -14,12 +18,14 @@ class VmState(Enum):
     UNKNOWN = "Unknown"
 
     @classmethod
-    def _missing_(cls, value: object) -> "VmState":
+    def _missing_(cls, value: object) -> VmState:
         return cls.UNKNOWN
 
 
 @dataclass
 class VmInfo:
+    """Detailed state of a single VM as reported by Multipass."""
+
     name: str
     state: VmState
     ipv4: list[str]
@@ -33,7 +39,8 @@ class VmInfo:
     mounts: dict[str, str]
 
     @classmethod
-    def from_info_json(cls, data: dict, name: str) -> "VmInfo":
+    def from_info_json(cls, data: dict, name: str) -> VmInfo:
+        """Build a VmInfo from the JSON payload of `multipass info --format json`."""
         vm = data["info"][name]
         disks = vm.get("disks", {})
         first_disk = next(iter(disks.values()), {})
@@ -56,7 +63,8 @@ class VmInfo:
         )
 
     @classmethod
-    def from_list_json(cls, data: dict) -> list["VmInfo"]:
+    def from_list_json(cls, data: dict) -> list[VmInfo]:
+        """Build VmInfo objects from the JSON payload of `multipass list`."""
         return [
             cls(
                 name=item["name"],
@@ -77,6 +85,8 @@ class VmInfo:
 
 @dataclass
 class ImageInfo:
+    """A VM image available from a Multipass remote."""
+
     aliases: list[str]
     os: str
     release: str
@@ -84,7 +94,8 @@ class ImageInfo:
     version: str
 
     @classmethod
-    def from_find_json(cls, data: dict) -> list["ImageInfo"]:
+    def from_find_json(cls, data: dict) -> list[ImageInfo]:
+        """Build ImageInfo objects from the JSON payload of `multipass find`."""
         return [
             cls(
                 aliases=img.get("aliases", []),
@@ -99,12 +110,15 @@ class ImageInfo:
 
 @dataclass
 class NetworkInfo:
+    """A host network that Multipass can attach VMs to."""
+
     name: str
     type: str
     description: str
 
     @classmethod
-    def from_networks_json(cls, data: dict) -> list["NetworkInfo"]:
+    def from_networks_json(cls, data: dict) -> list[NetworkInfo]:
+        """Build NetworkInfo objects from the JSON payload of `multipass networks`."""
         return [
             cls(
                 name=item["name"],
@@ -117,11 +131,14 @@ class NetworkInfo:
 
 @dataclass
 class VersionInfo:
+    """Client and daemon versions reported by `multipass version`."""
+
     multipass: str
     multipassd: str
 
     @classmethod
-    def from_json(cls, data: dict) -> "VersionInfo":
+    def from_json(cls, data: dict) -> VersionInfo:
+        """Build a VersionInfo from the JSON payload of `multipass version`."""
         return cls(
             multipass=data.get("multipass", ""),
             multipassd=data.get("multipassd", ""),
@@ -130,13 +147,16 @@ class VersionInfo:
 
 @dataclass
 class AliasInfo:
+    """A command alias defined in Multipass."""
+
     alias: str
     instance: str
     command: str
     working_directory: str
 
     @classmethod
-    def from_aliases_json(cls, data: dict) -> list["AliasInfo"]:
+    def from_aliases_json(cls, data: dict) -> list[AliasInfo]:
+        """Build AliasInfo objects from the JSON payload of `multipass aliases`."""
         return [
             cls(
                 alias=item["alias"],
@@ -180,6 +200,7 @@ class CloudInitConfig:
     users: list[dict] | None = None
 
     def to_dict(self) -> dict:
+        """Return the configuration as a dict, omitting fields left unset."""
         result: dict = {}
         for f in fields(self):
             value = getattr(self, f.name)
@@ -190,6 +211,8 @@ class CloudInitConfig:
 
 @dataclass
 class SnapshotInfo:
+    """A snapshot taken from a VM instance."""
+
     name: str
     comment: str
     created: str
@@ -197,15 +220,18 @@ class SnapshotInfo:
     instance: str
 
     @classmethod
-    def from_snapshots_json(cls, data: dict) -> list["SnapshotInfo"]:
+    def from_snapshots_json(cls, data: dict) -> list[SnapshotInfo]:
+        """Build SnapshotInfo objects from the `multipass snapshot list` JSON."""
         result = []
         for instance_name, snapshots in data.get("info", {}).items():
             for snap_name, snap_data in snapshots.items():
-                result.append(cls(
-                    name=snap_name,
-                    comment=snap_data.get("comment", ""),
-                    created=snap_data.get("created", ""),
-                    parent=snap_data.get("parent") or None,
-                    instance=instance_name,
-                ))
+                result.append(
+                    cls(
+                        name=snap_name,
+                        comment=snap_data.get("comment", ""),
+                        created=snap_data.get("created", ""),
+                        parent=snap_data.get("parent") or None,
+                        instance=instance_name,
+                    )
+                )
         return result

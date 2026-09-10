@@ -1,3 +1,5 @@
+"""Helpers for locating local resources used when provisioning VMs."""
+
 from __future__ import annotations
 
 from pathlib import Path
