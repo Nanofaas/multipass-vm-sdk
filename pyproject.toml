@@ -3,7 +3,8 @@ name = "multipass-sdk"
 version = "0.6.0"
 description = "Unofficial Python SDK for Canonical Multipass"
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE.txt"]
 requires-python = ">=3.11"
 dependencies = [
     "haikunator>=2.1.0",
@@ -14,17 +15,105 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
+    # Pinned exactly to match the ruff-pre-commit revision in
+    # .pre-commit-config.yaml. A newer ruff in either place makes the hook and a
+    # local `ruff check` disagree about what a violation is. Bump both together.
+    "ruff==0.16.6",
+    "basedpyright>=1.39.3",
+    "bandit>=1.8",
+    "pre-commit>=4.0",
 ]
 
 [project.scripts]
 multipass-vm-e2e = "multipass.e2e:main"
 
 [build-system]
-requires = ["hatchling"]
+# >=1.27 is required for the PEP 639 `license` / `license-files` fields above;
+# older hatchling rejects the SPDX string form.
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/multipass"]
+
+# =============================================================================
+# Ruff - linting + formatting
+# =============================================================================
+#   uv run ruff check .          # lint
+#   uv run ruff check --fix .    # lint + apply safe fixes
+#   uv run ruff format .         # format
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # Pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+    "SIM",   # flake8-simplify
+    "TID",   # flake8-tidy-imports
+    "RUF",   # Ruff-specific rules
+    "PERF",  # Perflint
+    "PT",    # flake8-pytest-style
+    "RET",   # flake8-return
+    "PTH",   # flake8-use-pathlib
+    "D",     # pydocstyle - this is a published SDK with a public API
+]
+ignore = [
+    # Mutually exclusive summary conventions. Summary on the first line (D212)
+    # is the chosen convention, so its counterpart D213 is off; D203 pairs with
+    # D211 the same way.
+    "D203",
+    "D213",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test functions are documented by their name; requiring a docstring on every
+# one of them is noise, not documentation. Style rules (D2xx/D4xx) still apply.
+"tests/**" = ["D100", "D101", "D102", "D103", "D104", "D105", "D107"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["multipass"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+# =============================================================================
+# basedpyright - type checking
+# =============================================================================
+# The shared type checker across these projects; mypy is no longer used
+# anywhere. Scoped to src/multipass rather than the whole repo: the test tree
+# has its own backlog of untyped helpers, and typing the shipped SDK is what
+# protects consumers.
+#
+# reportImplicitOverride is left off because typing.override requires 3.12 and
+# this package supports 3.11 (see the same note in shellcraft).
+#
+# The `list` -> `list_vms` rename removed the genuine obstacle that was here: a
+# method named `list` shadowed the builtin inside the class body, so every
+# `list[X]` annotation in that class resolved to the method rather than the
+# builtin.
+
+[tool.basedpyright]
+include = ["src/multipass"]
+typeCheckingMode = "standard"
+reportMissingTypeStubs = false
+reportPrivateUsage = false
+venvPath = "."
+venv = ".venv"
+
+# =============================================================================
+# pytest
+# =============================================================================
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -32,3 +121,45 @@ markers = [
     "integration: marks tests as integration tests (require Multipass installed)",
 ]
 addopts = "-m 'not integration'"
+
+# =============================================================================
+# Coverage
+# =============================================================================
+
+[tool.coverage.run]
+branch = true
+source = ["multipass"]
+# e2e.py is the `multipass-vm-e2e` entry point: a CLI harness whose every path
+# drives a real Multipass daemon, so it is covered by the integration suite
+# rather than by unit tests. Counting it here would report 0% for a file that is
+# exercised the only way it can be.
+omit = ["src/multipass/e2e.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 90
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
+
+# =============================================================================
+# Bandit - security static analysis
+# =============================================================================
+# This SDK's whole job is to shell out to the `multipass` CLI, so subprocess is
+# its subject matter, not a smell. B602 (shell=True) stays enabled: no call in
+# this codebase uses it, and that must remain true.
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv"]
+skips = [
+    # B404 (import subprocess), B603 (subprocess call), B607 (partial path):
+    # unavoidable for a wrapper around an external CLI.
+    "B404",
+    "B603",
+    "B607",
+]

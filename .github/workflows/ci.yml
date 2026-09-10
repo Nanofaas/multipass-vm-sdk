@@ -2,17 +2,120 @@ name: CI
 
 on:
   pull_request:
-    branches: [ main ]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  test:
+  # ---------------------------------------------------------------------------
+  # Lint, format, types, security.
+  #
+  # Runs the same hooks as local development through pre-commit, so the two
+  # cannot drift. The ruff revision is pinned in .pre-commit-config.yaml and in
+  # pyproject.toml; bump both together.
+  # ---------------------------------------------------------------------------
+  pre-commit:
+    name: pre-commit (ruff, basedpyright, bandit)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
+
+      - uses: actions/setup-python@v5
         with:
-          version: "latest"
-      - name: Install dependencies
-        run: uv sync --extra dev
-      - name: Run unit tests
-        run: uv run pytest tests/unit/ -v --tb=short
+          # ruff's target-version is py311 and the package supports 3.11, so
+          # linting on the declared floor is the honest choice.
+          python-version: "3.11"
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install pre-commit
+        run: python -m pip install --upgrade pip pre-commit
+
+      - name: Cache pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Run pre-commit
+        run: pre-commit run --all-files --show-diff-on-failure --color=always
+
+  # ---------------------------------------------------------------------------
+  # Unit tests + coverage gate.
+  #
+  # pyproject.toml sets `addopts = "-m 'not integration'"`, so the tests that
+  # need a real Multipass daemon stay out of this job.
+  # ---------------------------------------------------------------------------
+  test:
+    name: pytest (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.11 is the declared floor (requires-python >=3.11).
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install project
+        run: uv sync --frozen --extra dev
+
+      - name: Run unit tests with coverage
+        run: uv run --frozen pytest tests/unit --cov --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.python-version }}
+          path: coverage.xml
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # Integration tests against a real Multipass daemon.
+  #
+  # These cannot run on a hosted runner - Multipass needs nested virtualisation
+  # and a running daemon - so the job is manual-only rather than failing every
+  # PR. Trigger it from the Actions tab, or run it locally with
+  # `uv run pytest -m integration`.
+  # ---------------------------------------------------------------------------
+  integration:
+    name: integration (manual, needs Multipass)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install project
+        run: uv sync --frozen --extra dev
+
+      - name: Run integration tests
+        run: uv run --frozen pytest -m integration -v --tb=short

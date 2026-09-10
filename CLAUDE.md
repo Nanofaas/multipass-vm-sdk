@@ -29,12 +29,15 @@ uv run pytest -m integration -v
 
 ## Architecture
 
-`src/multipass/` contains five modules:
+`src/multipass/` contains nine modules:
 
 - `_backend.py` — `CommandResult` dataclass, `CommandBackend` protocol, `SubprocessBackend` (real CLI), `FakeBackend` (for tests). All subprocess calls go through the backend.
 - `exceptions.py` — Typed exception hierarchy rooted at `MultipassError`.
-- `models.py` — Dataclasses (`VmInfo`, `VmState`, `ImageInfo`, etc.) with `from_*_json()` class methods that parse the actual Multipass CLI JSON output.
-- `vm.py` — `MultipassVM`: per-VM operations (info, start, stop, restart, suspend, delete, recover, exec, transfer, mount, unmount, snapshot, restore, clone).
-- `client.py` — `MultipassClient`: global operations (launch, list, find, purge, networks, version, get, set, aliases).
+- `models.py` — Dataclasses (`VmInfo`, `VmState`, `ImageInfo`, `VmConfig`, etc.) with `from_*_json()` class methods that parse the actual Multipass CLI JSON output.
+- `vm.py` — `MultipassVM`: per-VM operations (info, start, stop, restart, suspend, delete, recover, exec, exec_structured, transfer, mount, unmount, snapshot, restore, clone).
+- `client.py` — `MultipassClient`: global operations (launch, launch_many, list_vms, find, purge, networks, version, get, set, aliases, ensure_running).
+- `utils.py` — Small shared helpers.
+- `testing.py` — Helpers for consumers writing their own tests against the SDK.
+- `e2e.py` — The `multipass-vm-e2e` console script: an end-to-end harness that creates real VMs and exercises every operation. Not imported by the library.
 
 `MultipassClient` creates `MultipassVM` instances and passes its backend down to them. Unit tests inject a `FakeBackend` configured with pre-built `CommandResult` responses.
