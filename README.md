@@ -4,7 +4,7 @@ Unofficial Python SDK for [Canonical Multipass](https://multipass.run). Wraps th
 
 - Full coverage of the Multipass CLI (launch, list, find, exec, transfer, mount, snapshot, clone, …)
 - Testable without Multipass installed — inject a `FakeBackend` in unit tests
-- Typed exception hierarchy, dataclass models, no external runtime dependencies beyond `haikunator`
+- Typed exception hierarchy, dataclass models, no external runtime dependencies beyond `haikunator` and `pyyaml`
 
 ---
 
@@ -367,12 +367,29 @@ assert backend.last_env() is None
 ```bash
 # Setup
 uv sync
+uv run pre-commit install
 
 # Unit tests (no Multipass required)
 uv run pytest tests/unit/ -v
 
+# Unit tests with the coverage gate (fails below 90%)
+uv run pytest tests/unit --cov --cov-report=term-missing
+
 # Integration tests (require Multipass installed and running)
 uv run pytest -m integration -v
+
+# Lint and format (ruff)
+uv run ruff check .
+uv run ruff format .
+
+# Type checking (basedpyright)
+uv run basedpyright
+
+# Security (bandit)
+uv run bandit -c pyproject.toml -r src
+
+# Everything pre-commit runs, the same way CI does
+uv run pre-commit run --all-files
 ```
 
 ## End-to-end script
@@ -398,4 +415,4 @@ The integration test suite covers: full VM lifecycle, resources, soft delete + p
 
 ## Contributing
 
-Send a pull request. Unit tests must pass; integration tests are welcome but not required in CI.
+Send a pull request. Unit tests and pre-commit (ruff, basedpyright, bandit) must pass; integration tests are welcome but not required in CI.
