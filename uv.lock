@@ -233,7 +233,7 @@ wheels = [
 ]
 
 [[package]]
-name = "multipass-sdk"
+name = "multipass-vm-sdk"
 version = "0.6.0"
 source = { editable = "." }
 dependencies = [

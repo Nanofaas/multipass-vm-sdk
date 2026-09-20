@@ -1,4 +1,4 @@
-from multipass.models import (
+from multipass_vm_sdk.models import (
     AliasInfo,
     CloudInitConfig,
     ImageInfo,

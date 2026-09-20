@@ -10,7 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from multipass import MultipassClient, MultipassCommandError, VmNotFoundError, VmState
+from multipass_vm_sdk import (
+    MultipassClient,
+    MultipassCommandError,
+    VmNotFoundError,
+    VmState,
+)
 
 
 @pytest.fixture(scope="module")

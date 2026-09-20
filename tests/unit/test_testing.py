@@ -2,10 +2,10 @@
 
 import pytest
 
-from multipass import MultipassClient, MultipassCommandError
-from multipass._backend import CommandResult
-from multipass._backend import FakeBackend as InternalFakeBackend
-from multipass.testing import FakeBackend
+from multipass_vm_sdk import MultipassClient, MultipassCommandError
+from multipass_vm_sdk._backend import CommandResult
+from multipass_vm_sdk._backend import FakeBackend as InternalFakeBackend
+from multipass_vm_sdk.testing import FakeBackend
 
 
 def test_fake_backend_is_the_same_object_as_the_internal_one():

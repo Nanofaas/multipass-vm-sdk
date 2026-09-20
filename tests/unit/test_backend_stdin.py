@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 from unittest.mock import MagicMock, patch
 
-from multipass._backend import SubprocessBackend
+from multipass_vm_sdk._backend import SubprocessBackend
 
 
 def test_subprocess_backend_never_inherits_stdin() -> None:
@@ -15,7 +15,9 @@ def test_subprocess_backend_never_inherits_stdin() -> None:
     """
     backend = SubprocessBackend()
     completed = MagicMock(returncode=0, stdout="", stderr="")
-    with patch("multipass._backend.subprocess.run", return_value=completed) as mock_run:
+    with patch(
+        "multipass_vm_sdk._backend.subprocess.run", return_value=completed
+    ) as mock_run:
         backend.run(["multipass", "exec", "vm", "--", "true"])
 
     assert mock_run.call_args.kwargs.get("stdin") == subprocess.DEVNULL

@@ -1,6 +1,6 @@
 import pytest
 
-from multipass._backend import CommandResult, FakeBackend
+from multipass_vm_sdk._backend import CommandResult, FakeBackend
 
 
 def test_command_result_success():

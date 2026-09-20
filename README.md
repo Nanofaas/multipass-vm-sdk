@@ -13,13 +13,13 @@ Unofficial Python SDK for [Canonical Multipass](https://multipass.run). Wraps th
 ### From GitHub (recommended for internal projects)
 
 ```bash
-uv add git+https://github.com/miciav/multipass-sdk.git
+uv add git+https://github.com/Nanofaas/multipass-vm-sdk.git
 ```
 
 To pin to a specific commit or tag:
 
 ```bash
-uv add git+https://github.com/miciav/multipass-sdk.git@v0.6.0
+uv add git+https://github.com/Nanofaas/multipass-vm-sdk.git@v0.6.0
 ```
 
 Multipass itself must be installed on the machine where the SDK is used at runtime. It is **not** required for unit tests.
