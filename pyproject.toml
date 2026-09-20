@@ -1,10 +1,26 @@
 [project]
-name = "multipass-sdk"
+name = "multipass-vm-sdk"
 version = "0.6.0"
 description = "Unofficial Python SDK for Canonical Multipass"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
+authors = [
+    { name = "miciav", email = "5889596+miciav@users.noreply.github.com" }
+]
+keywords = ["multipass", "vm", "virtualization", "canonical", "devops"]
+# The three Python versions are the ones CI's matrix actually runs, not a wish.
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Systems Administration",
+]
 requires-python = ">=3.11"
 dependencies = [
     "haikunator>=2.1.0",
@@ -12,7 +28,13 @@ dependencies = [
 ]
 
 [project.scripts]
-multipass-vm-e2e = "multipass.e2e:main"
+multipass-vm-e2e = "multipass_vm_sdk.e2e:main"
+
+# PyPI shows a package page with no link home at all without these.
+[project.urls]
+Homepage = "https://github.com/Nanofaas/multipass-vm-sdk"
+Repository = "https://github.com/Nanofaas/multipass-vm-sdk"
+Issues = "https://github.com/Nanofaas/multipass-vm-sdk/issues"
 
 [build-system]
 # >=1.27 is required for the PEP 639 `license` / `license-files` fields above;
@@ -21,7 +43,7 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/multipass"]
+packages = ["src/multipass_vm_sdk"]
 
 # =============================================================================
 # Development toolchain
@@ -92,7 +114,7 @@ ignore = [
 "tests/**" = ["D100", "D101", "D102", "D103", "D104", "D105", "D107"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["multipass"]
+known-first-party = ["multipass_vm_sdk"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -103,7 +125,7 @@ line-ending = "lf"
 # basedpyright - type checking
 # =============================================================================
 # The shared type checker across these projects; mypy is no longer used
-# anywhere. Scoped to src/multipass rather than the whole repo: the test tree
+# anywhere. Scoped to src/multipass_vm_sdk rather than the whole repo: the test tree
 # has its own backlog of untyped helpers, and typing the shipped SDK is what
 # protects consumers.
 #
@@ -116,7 +138,7 @@ line-ending = "lf"
 # builtin.
 
 [tool.basedpyright]
-include = ["src/multipass"]
+include = ["src/multipass_vm_sdk"]
 typeCheckingMode = "standard"
 reportMissingTypeStubs = false
 reportPrivateUsage = false
@@ -140,12 +162,12 @@ addopts = "-m 'not integration'"
 
 [tool.coverage.run]
 branch = true
-source = ["multipass"]
+source = ["multipass_vm_sdk"]
 # e2e.py is the `multipass-vm-e2e` entry point: a CLI harness whose every path
 # drives a real Multipass daemon, so it is covered by the integration suite
 # rather than by unit tests. Counting it here would report 0% for a file that is
 # exercised the only way it can be.
-omit = ["src/multipass/e2e.py"]
+omit = ["src/multipass_vm_sdk/e2e.py"]
 
 [tool.coverage.report]
 show_missing = true

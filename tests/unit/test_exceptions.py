@@ -1,4 +1,4 @@
-from multipass.exceptions import (
+from multipass_vm_sdk.exceptions import (
     MultipassCommandError,
     MultipassError,
     MultipassNotInstalledError,

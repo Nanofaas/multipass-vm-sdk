@@ -4,11 +4,11 @@ from typing import ClassVar
 
 import pytest
 
-from multipass._backend import CommandResult, FakeBackend
-from multipass.client import MultipassClient
-from multipass.exceptions import MultipassCommandError
-from multipass.models import VmConfig, VmState
-from multipass.vm import MultipassVM
+from multipass_vm_sdk._backend import CommandResult, FakeBackend
+from multipass_vm_sdk.client import MultipassClient
+from multipass_vm_sdk.exceptions import MultipassCommandError
+from multipass_vm_sdk.models import VmConfig, VmState
+from multipass_vm_sdk.vm import MultipassVM
 
 LIST_JSON = json.dumps(
     {
@@ -149,7 +149,7 @@ def test_launch_with_cloud_init():
 
 
 def test_launch_with_cloud_init_config_dict(tmp_path, monkeypatch):
-    monkeypatch.setattr("multipass.client.Path.home", lambda: tmp_path)
+    monkeypatch.setattr("multipass_vm_sdk.client.Path.home", lambda: tmp_path)
 
     captured: dict = {}
 
@@ -176,7 +176,7 @@ def test_launch_with_cloud_init_config_dict(tmp_path, monkeypatch):
 
 
 def test_launch_with_cloud_init_config_str(tmp_path, monkeypatch):
-    monkeypatch.setattr("multipass.client.Path.home", lambda: tmp_path)
+    monkeypatch.setattr("multipass_vm_sdk.client.Path.home", lambda: tmp_path)
 
     captured: dict = {}
 
@@ -406,7 +406,7 @@ def test_ensure_running_forwards_launch_params():
 
 
 def test_ensure_running_forwards_cloud_init_config(tmp_path, monkeypatch):
-    monkeypatch.setattr("multipass.client.Path.home", lambda: tmp_path)
+    monkeypatch.setattr("multipass_vm_sdk.client.Path.home", lambda: tmp_path)
     name = "my-vm"
     backend = FakeBackend()
     backend.push(
@@ -429,7 +429,7 @@ def test_ensure_running_forwards_cloud_init_config(tmp_path, monkeypatch):
 
 
 def test_public_api_importable():
-    from multipass import (
+    from multipass_vm_sdk import (
         CloudInitConfig,
         MultipassClient,
         VmConfig,
